@@ -1,0 +1,8 @@
+{
+    "require": {
+        "php": "^7.4",
+        "symfony/console": "^5.1",
+        "symfony/http-client": "^5.1",
+        "symfony/filesystem": "^5.1"
+    }
+}

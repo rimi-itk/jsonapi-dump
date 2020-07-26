@@ -13,9 +13,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\HttpClient;
 
-class Main extends Command
+class JsonApiDownloadCommand extends Command
 {
-    protected static $defaultName = 'app:main';
+    protected static $defaultName = 'app:jsonapi:download';
 
     protected function configure()
     {
@@ -25,7 +25,7 @@ class Main extends Command
             ->addOption('output-filename', null, InputOption::VALUE_REQUIRED,
                 'Output filename (relative to output directory)')
             ->addOption('base-url', null, InputOption::VALUE_REQUIRED, 'Base url in converted content')
-            ->addOption('file-url-pattern', null, InputOption::VALUE_REQUIRED, 'File url pattern (regexp)');
+            ->addOption('file-url-pattern', null, InputOption::VALUE_REQUIRED, 'File url pattern (regexp) used to detect and download file resources (e.g. images)');
     }
 
     /** @var SymfonyStyle */
@@ -54,8 +54,12 @@ class Main extends Command
 
         // Save files
         $filesystem = new Filesystem();
+        $this->baseUrl = $input->getOption('base-url');
         $outputDirectory = $input->getOption('output-directory');
-        $this->baseUrl = rtrim($input->getOption('base-url'), '/');
+        if (null !== $outputDirectory) {
+            $this->baseUrl .= '/'.$outputDirectory;
+        }
+        $this->baseUrl = rtrim($this->baseUrl, '/');
         foreach ($this->filenames as $url => $filename) {
             if (isset($this->data[$url])) {
                 $data = $this->data[$url];
@@ -133,7 +137,7 @@ class Main extends Command
         }
 
         // Sanitize the filename
-        $filename = preg_replace('@[^a-z0-9_/]@i', '@', $filename);
+        $filename = preg_replace('@[^a-z0-9_/.-]@i', '@', $filename);
 
         if (strlen($filename) > 100) {
             $filename = substr($filename, 0, 100) . '-' . sha1($filename);
@@ -143,8 +147,10 @@ class Main extends Command
             'png',
             'jpg',
         ];
-        $extension = [$allowedExtensions][pathinfo($url, PATHINFO_EXTENSION)] ?? null;
-        $filename .= '.' . ($extension ?: 'json');
+        $extension = pathinfo($url, PATHINFO_EXTENSION);
+        if (!in_array($extension, $allowedExtensions, true)) {
+            $filename .= '.json';
+        }
 
         return $filename;
     }
@@ -180,7 +186,6 @@ class Main extends Command
 }
 
 $application = new Application();
-$application->add(new Main());
-$application->setDefaultCommand('app:main');
+$application->add(new JsonApiDownloadCommand());
+$application->setDefaultCommand('app:jsonapi:download', true);
 $application->run();
-
